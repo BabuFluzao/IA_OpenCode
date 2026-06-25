@@ -109,7 +109,20 @@ async function saveConversation(phone, messages) {
     .upsert({ phone, messages, updated_at: new Date().toISOString() });
 }
 
+function parseBody(req) {
+  return new Promise((resolve) => {
+    if (req.body) return resolve(req.body);
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+      catch { resolve({}); }
+    });
+  });
+}
+
 module.exports = async function handler(req, res) {
+  req.body = req.body || (await parseBody(req));
   if (req.method === 'GET') {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
