@@ -1,0 +1,145 @@
+const { createClient } = require('@supabase/supabase-js');
+const Groq = require('groq-sdk');
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+const SYSTEM_PROMPT = `Você é a assistente virtual de [Nome da Nutricionista], uma nutricionista clínica e esportiva.
+
+REGRAS:
+- Seja educada, calorosa e profissional
+- Responda apenas com base nas informações abaixo
+- Se não souber a resposta, peça desculpas e diga que vai transferir para a nutricionista
+- Nunca invente informações nutricionais
+
+INFORMAÇÕES DA NUTRICIONISTA:
+- Nome: [Nome]
+- CRN: [Número]
+- Especialidades: nutrição clínica, emagrecimento, nutrição esportiva
+- Atendimento: presencial (endereço) e online (Google Meet)
+- Horários: seg-sex 8h-18h, sáb 8h-12h
+- Formas de pagamento: PIX, cartão de crédito/débito, dinheiro
+- Valor da consulta: R$ [valor] avulsa | R$ [valor] pacote 4 sessões
+- Duração da consulta: aproximadamente 50min
+- Forma de agendamento: [instruções]
+
+PERGUNTAS FREQUENTES:
+- "Preciso de exames antes?" → Sim, geralmente exames de sangue recentes (até 6 meses)
+- "Quanto tempo leva pra ver resultados?" → Depende do objetivo, mas mudanças começam em 2-3 semanas
+- "Aceita convênio?" → Não, mas forneço nota fiscal para reembolso
+- "Precisa de anamnese?" → Sim, envio um formulário antes da primeira consulta
+- "Cancelamento/remarcação" → Com até 24h de antecedência sem custo
+
+FLUXO DE ATENDIMENTO:
+1. Se o cliente pedir informação geral → responda com base nas INFORMAÇÕES
+2. Se o cliente quiser agendar → colete nome completo, telefone, melhor horário e objetivo
+3. Se o cliente tiver dúvida complexa → transfira para a nutricionista
+4. Se o cliente já for paciente → pergunte o número do prontuário para consultar histórico
+
+INSTRUÇÕES IMPORTANTES:
+- Se for dúvida sobre dieta específica ou condição de saúde → NUNCA prescreva, apenas agende consulta
+- Se o cliente estiver insatisfeito ou com dúvida técnica → peça desculpas e ofereça transferência
+- Mantenha respostas CONCISAS (máximo 3 parágrafos)`;
+
+function formatPhone(phone) {
+  const clean = phone.replace(/[^\d]/g, '');
+  return clean.startsWith('55') ? clean : `55${clean}`;
+}
+
+async function sendWhatsApp(to, text) {
+  const url = `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const body = {
+    messaging_product: 'whatsapp',
+    to: formatPhone(to),
+    type: 'text',
+    text: { body: text },
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('WhatsApp API error:', err);
+    throw new Error(err);
+  }
+}
+
+async function getConversation(phone) {
+  const { data } = await supabase
+    .from('conversas')
+    .select('messages')
+    .eq('phone', phone)
+    .single();
+  return data?.messages || [];
+}
+
+async function saveConversation(phone, messages) {
+  await supabase
+    .from('conversas')
+    .upsert({ phone, messages, updated_at: new Date().toISOString() });
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method === 'GET') {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === process.env.WEBHOOK_VERIFY_TOKEN) {
+      return res.status(200).send(challenge);
+    }
+    return res.sendStatus(403);
+  }
+
+  if (req.method === 'POST') {
+    const entry = req.body?.entry?.[0];
+    const change = entry?.changes?.[0];
+    const value = change?.value;
+    const message = value?.messages?.[0];
+
+    if (!message) return res.sendStatus(200);
+
+    const phone = message.from;
+    const text = message.text?.body?.trim();
+
+    if (!text || !phone) return res.sendStatus(200);
+
+    try {
+      const history = await getConversation(phone);
+      const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...history,
+        { role: 'user', content: text },
+      ];
+
+      const completion = await groq.chat.completions.create({
+        messages,
+        model: 'llama3-70b-8192',
+        temperature: 0.7,
+        max_tokens: 512,
+      });
+
+      const reply = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+      await sendWhatsApp(phone, reply);
+
+      await saveConversation(phone, [
+        ...history,
+        { role: 'user', content: text },
+        { role: 'assistant', content: reply },
+      ]);
+
+      return res.sendStatus(200);
+    } catch (err) {
+      console.error('Handler error:', err);
+      await sendWhatsApp(phone, 'Desculpe, tive um problema interno. A nutricionista será notificada.');
+      return res.sendStatus(200);
+    }
+  }
+
+  return res.sendStatus(405);
+};

@@ -1,0 +1,14 @@
+{
+  "name": "whatsapp-nutri-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp Cloud API + Groq + Supabase para nutricionista",
+  "main": "api/webhook.js",
+  "scripts": {
+    "dev": "node dev.js",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "groq-sdk": "^0.8.0"
+  }
+}
