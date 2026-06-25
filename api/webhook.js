@@ -118,7 +118,7 @@ module.exports = async function handler(req, res) {
     if (mode === 'subscribe' && token === process.env.WEBHOOK_VERIFY_TOKEN) {
       return res.status(200).send(challenge);
     }
-    return res.sendStatus(403);
+    return res.status(403).end();
   }
 
   if (req.method === 'POST') {
@@ -127,12 +127,12 @@ module.exports = async function handler(req, res) {
     const value = change?.value;
     const message = value?.messages?.[0];
 
-    if (!message) return res.sendStatus(200);
+    if (!message) return res.status(200).end();
 
     const phone = message.from;
     const text = message.text?.body?.trim();
 
-    if (!text || !phone) return res.sendStatus(200);
+    if (!text || !phone) return res.status(200).end();
 
     try {
       const history = await getConversation(phone);
@@ -158,13 +158,13 @@ module.exports = async function handler(req, res) {
         { role: 'assistant', content: reply },
       ]);
 
-      return res.sendStatus(200);
+      return res.status(200).end();
     } catch (err) {
       console.error('Handler error:', err);
       await sendWhatsApp(phone, 'Desculpe, tive um problema interno. A nutricionista será notificada.');
-      return res.sendStatus(200);
+      return res.status(200).end();
     }
   }
 
-  return res.sendStatus(405);
+  return res.status(405).end();
 };
