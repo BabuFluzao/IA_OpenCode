@@ -163,7 +163,6 @@ module.exports = async function handler(req, res) {
       });
 
       const reply = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
-      await sendWhatsApp(phone, reply);
 
       await saveConversation(phone, [
         ...history,
@@ -171,10 +170,10 @@ module.exports = async function handler(req, res) {
         { role: 'assistant', content: reply },
       ]);
 
+      await sendWhatsApp(phone, reply);
       return res.status(200).end();
     } catch (err) {
       console.error('Handler error:', err);
-      await sendWhatsApp(phone, 'Desculpe, tive um problema interno. A nutricionista será notificada.');
       return res.status(200).end();
     }
   }
