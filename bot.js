@@ -3,7 +3,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 const WebSocket = require('ws');
-const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const QRCode = require('qrcode');
 const qrcode = require('qrcode-terminal');
@@ -197,9 +197,11 @@ async function handleMedia(phone, from, sock, pushname) {
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
     auth: state,
+    version,
     printQRInTerminal: false,
     logger: pino({ level: 'silent' }),
     browser: ['WhatsApp Nutri Bot', 'Chrome', '1.0.0'],
