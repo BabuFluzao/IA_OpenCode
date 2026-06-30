@@ -3,7 +3,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const Groq = require('groq-sdk');
 const WebSocket = require('ws');
-const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const QRCode = require('qrcode');
 const qrcode = require('qrcode-terminal');
@@ -226,13 +226,8 @@ async function startBot() {
     }
 
     if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(`Conexão fechada. Reconectar: ${shouldReconnect}.`);
-      if (shouldReconnect) {
-        setTimeout(() => startBot(), 1000);
-      } else {
-        console.log('Desconectado permanentemente. Remova auth_info e escaneie QR novamente.');
-      }
+      console.log('Conexão fechada. pm2 vai reiniciar em 5s.');
+      setTimeout(() => process.exit(1), 5000);
     }
   });
 
