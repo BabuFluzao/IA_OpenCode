@@ -1,5 +1,9 @@
-node_modules/
 .env
-.env.local
-
-.vercel
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+qrcode.png
+bot.log
+bot.err
+*.log
+.vercel/
