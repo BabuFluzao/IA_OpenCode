@@ -7,3 +7,4 @@ bot.log
 bot.err
 *.log
 .vercel/
+auth_info/
