@@ -173,8 +173,11 @@ async function processMessage(phone, from, texts, pushname, sock) {
     console.log(`✅ ${phone}${newNome ? ` (${newNome})` : ''}: ${reply.slice(0, 60)}...`);
   } catch (err) {
     console.error('Erro:', err.message);
+    const transferMsg = '🔴 AGUARDANDO ATENDIMENTO — Tive um problema interno. A equipe da Dra. Michelle vai assumir agora.';
+    const newHistory = [...history, { role: 'user', content: text }, { role: 'assistant', content: transferMsg }];
+    await saveConversation(phone, newHistory, 'human', newNome || initialNome);
     try {
-      await sock.sendMessage(from, { text: 'Desculpe, tive um problema interno. A nutricionista será notificada.' });
+      await sock.sendMessage(from, { text: transferMsg });
     } catch (_) {}
   }
 }
