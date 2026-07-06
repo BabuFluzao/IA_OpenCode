@@ -162,12 +162,14 @@ async function processMessage(phone, from, texts, pushname, sock) {
 
     const reply = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
 
-    if (reply.includes('🔴') || reply.includes('AGUARDANDO ATENDIMENTO')) {
+    const isTransfer = reply.includes('🔴') || reply.includes('AGUARDANDO ATENDIMENTO');
+    if (isTransfer) {
       await savePatientData(phone, text, history);
     }
 
     const newHistory = [...history, { role: 'user', content: text }, { role: 'assistant', content: reply }];
-    await saveConversation(phone, newHistory, 'bot', newNome || initialNome);
+    const newStatus = isTransfer ? 'human' : 'bot';
+    await saveConversation(phone, newHistory, newStatus, newNome || initialNome);
 
     await sock.sendMessage(from, { text: reply });
     console.log(`✅ ${phone}${newNome ? ` (${newNome})` : ''}: ${reply.slice(0, 60)}...`);
