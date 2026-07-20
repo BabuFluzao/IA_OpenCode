@@ -216,8 +216,16 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  if (!state.creds.registered) {
-    setTimeout(async () => {
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr && !state.creds.registered) {
+      console.log('\nEscaneie o QR Code abaixo com seu WhatsApp:\n');
+      qrcode.generate(qr, { small: true });
+      const qrPath = path.join(__dirname, 'qrcode.png');
+      QRCode.toFile(qrPath, qr, { width: 400 }, (err) => {
+        if (!err) console.log(`\nQR Code salvo em: ${qrPath}\n   Abra esse arquivo e escaneie com o WhatsApp`);
+      });
       try {
         const code = await sock.requestPairingCode('5521972774047');
         console.log(`\n=== CÓDIGO DE PAR: ${code.match(/.{1,4}/g).join('-')} ===`);
@@ -226,19 +234,6 @@ async function startBot() {
       } catch (err) {
         console.error('Erro ao gerar código de par:', err.message);
       }
-    }, 5000);
-  }
-
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      console.log('\nEscaneie o QR Code abaixo com seu WhatsApp:\n');
-      qrcode.generate(qr, { small: true });
-      const qrPath = path.join(__dirname, 'qrcode.png');
-      QRCode.toFile(qrPath, qr, { width: 400 }, (err) => {
-        if (!err) console.log(`\nQR Code salvo em: ${qrPath}\n   Abra esse arquivo e escaneie com o WhatsApp`);
-      });
     }
 
     if (connection === 'open') {
