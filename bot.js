@@ -219,7 +219,7 @@ async function startBot() {
   if (!state.creds.registered) {
     setTimeout(async () => {
       try {
-        const code = await sock.requestPairingCode('55972774047');
+        const code = await sock.requestPairingCode('5521972774047');
         console.log(`\n=== CÓDIGO DE PAR: ${code.match(/.{1,4}/g).join('-')} ===`);
         console.log('Vá em Configurações > Dispositivos Conectados > Conectar um Dispositivo');
         console.log('Digite o código acima (sem os traços)\n');
