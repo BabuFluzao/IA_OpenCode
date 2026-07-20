@@ -216,6 +216,19 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
+  if (!state.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const code = await sock.requestPairingCode('55972774047');
+        console.log(`\n=== CÓDIGO DE PAR: ${code.match(/.{1,4}/g).join('-')} ===`);
+        console.log('Vá em Configurações > Dispositivos Conectados > Conectar um Dispositivo');
+        console.log('Digite o código acima (sem os traços)\n');
+      } catch (err) {
+        console.error('Erro ao gerar código de par:', err.message);
+      }
+    }, 5000);
+  }
+
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
