@@ -203,6 +203,7 @@ async function handleMedia(phone, from, sock, pushname) {
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
+  let pairingInterval = null;
 
   const sock = makeWASocket({
     auth: state,
@@ -226,14 +227,20 @@ async function startBot() {
       QRCode.toFile(qrPath, qr, { width: 400 }, (err) => {
         if (!err) console.log(`\nQR Code salvo em: ${qrPath}\n   Abra esse arquivo e escaneie com o WhatsApp`);
       });
-      try {
-        const code = await sock.requestPairingCode('5521972774047');
-        console.log(`\n=== CÓDIGO DE PAR: ${code.match(/.{1,4}/g).join('-')} ===`);
-        console.log('Vá em Configurações > Dispositivos Conectados > Conectar um Dispositivo');
-        console.log('Digite o código acima (sem os traços)\n');
-      } catch (err) {
-        console.error('Erro ao gerar código de par:', err.message);
-      }
+    }
+
+    if (!state.creds.registered && !pairingInterval) {
+      pairingInterval = setInterval(async () => {
+        try {
+          const code = await sock.requestPairingCode('5521972774047');
+          const formatted = code.match(/.{1,4}/g).join('-');
+          console.log(`\n=== CÓDIGO DE PAR: ${formatted} ===`);
+          console.log('Vá em Configurações > Dispositivos Conectados > Conectar um Dispositivo');
+          console.log('Digite o código acima (sem os traços)\n');
+        } catch (err) {
+          console.error('Erro código de par:', err.message);
+        }
+      }, 15000);
     }
 
     if (connection === 'open') {
